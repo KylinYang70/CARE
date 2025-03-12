@@ -7,7 +7,6 @@ def get_isic_dataset(data_root, batch_size=32, num_workers=4, val_rate=0.1):
     num_clients = 6
     train_loaders, val_loaders, test_loaders = [], [], []
     all_val_datasets = []
-    all_test_datasets = []
 
     # Define transformations
     train_transform = transforms.Compose([

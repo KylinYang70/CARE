@@ -1,26 +1,16 @@
 from model.resnet import resnet18, resnet50
-import random
+from utils import Seed
+import torch.nn as nn
 import argparse
-from torch.utils.data import ConcatDataset, DataLoader
+from torch.utils.data import ConcatDataset
 from sklearn.metrics import accuracy_score, f1_score, classification_report, cohen_kappa_score
 import numpy as np
 import os
-from dataset import *
+from data.dataset import *
 from model.base import BaseModel
 from loss import *
 
 to_np = lambda x: x.data.cpu().numpy()
-
-
-# set seed
-def Seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
 
 
 class ImageCalibrator(nn.Module):
@@ -137,7 +127,7 @@ def build_new_dataset(net_local_list, val_loader, batch_size, num_clients, mode=
     return calibrate_dataset
 
 
-def cross_expert_calibrator(net_local_list, new_data_loader, model_extract, testloader_global, batch_size, num_clients):
+def cross_client_calibrator(net_local_list, new_data_loader, model_extract, testloader_global, batch_size, num_clients):
     calibrator = ImageCalibrator(num_clients=num_clients).to(device)
     _new_calibrator_eps = 60
     optimizer = torch.optim.AdamW(calibrator.parameters(), lr=0.001, weight_decay=1e-4)
@@ -250,7 +240,7 @@ def global_calibration_based(net_local_list, test_loader, calibrator, model_extr
     return acc, kappa, f1
 
 
-def cross_expert_classifier(net_local_list, new_data_loader, testloader_global, batch_size, num_clients):
+def cross_client_classifier(net_local_list, new_data_loader, testloader_global, batch_size, num_clients):
     MLP = SimpleClassifier(num_clients=num_clients, num_classes=args.num_classes).to(device)
     _new_classifier_eps = 50
     criterion = nn.CrossEntropyLoss()
@@ -421,7 +411,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='resnet18')
     parser.add_argument('--num_classes', type=int, default=8)
     parser.add_argument('--model_save_dir', type=str, default='saved/isic/')
-    parser.add_argument('--expert_list', type=int, nargs='+')
+    parser.add_argument('--client_list', type=int, nargs='+')
 
     args = parser.parse_args()
 
@@ -438,22 +428,22 @@ if __name__ == '__main__':
     Seed(args.seed)
     device = 'cuda'
     if args.dataset == 'isic':
-        train_loaders, val_loaders, test_loader, val_all_expert_loader = get_isic_dataset(args.data_dir, args.batch_size,
+        train_loaders, val_loaders, test_loader, val_all_client_loader = get_isic_dataset(args.data_dir, args.batch_size,
                                                                                        num_workers=4, val_rate=0.1)
     elif args.dataset == 'gdr':
-        train_loaders, val_loaders, test_loader, val_all_expert_loader = get_gdr_dataset(args.data_dir, args.batch_size,num_workers=4)
+        train_loaders, val_loaders, test_loader, val_all_client_loader = get_gdr_dataset(args.data_dir, args.batch_size,num_workers=4)
     else:
         raise NotImplementedError
     test_global_loader = test_loader
-    num_clients = len(args.expert_list)
+    num_clients = len(args.client_list)
     net_local_list = [BaseModel(num_classes=args.num_classes, base=args.model).to(device) for client_index in
                       range(num_clients)]
     for local_id in range(num_clients):
-        param_dir = os.path.join(args.model_save_dir, 'expert_{}'.format(args.expert_list[local_id]))
+        param_dir = os.path.join(args.model_save_dir, 'client_{}'.format(args.client_list[local_id]))
         net_local_list[local_id].renew_model(param_dir)
         net_local_list[local_id].eval()
-    softmax_calibrate_dataset = build_new_dataset(net_local_list, val_all_expert_loader, args.batch_size, num_clients, mode='softmax')
-    logit_calibrate_dataset = build_new_dataset(net_local_list, val_all_expert_loader, args.batch_size, num_clients, mode='logit')
+    softmax_calibrate_dataset = build_new_dataset(net_local_list, val_all_client_loader, args.batch_size, num_clients, mode='softmax')
+    logit_calibrate_dataset = build_new_dataset(net_local_list, val_all_client_loader, args.batch_size, num_clients, mode='logit')
     logit_test_dataset = build_new_dataset(net_local_list, test_global_loader, args.batch_size, num_clients, mode='logit')
     print("logit_test_dataset has been built.")
     softmax_new_data_loader = torch.utils.data.DataLoader(softmax_calibrate_dataset, batch_size=16, shuffle=True, num_workers=4)
@@ -466,9 +456,9 @@ if __name__ == '__main__':
         raise NotImplementedError
     model_extract = extractor.feature_extractor
 
-    _, acc_evi, kappa_evi, f1_evi = cross_expert_calibrator(net_local_list, logit_new_data_loader, model_extract,
+    _, acc_evi, kappa_evi, f1_evi = cross_client_calibrator(net_local_list, logit_new_data_loader, model_extract,
                                                             test_global_loader, args.batch_size, num_clients)
-    acc_foe, kappa_foe, f1_foe = cross_expert_classifier(net_local_list, softmax_new_data_loader, test_global_loader,
+    acc_foe, kappa_foe, f1_foe = cross_client_classifier(net_local_list, softmax_new_data_loader, test_global_loader,
                                                          args.batch_size, num_clients)
     acc_ens, kappa_ens, f1_ens = global_inference_vanilla_ensemble(net_local_list, test_global_loader, args.batch_size,
                                                                    num_clients)

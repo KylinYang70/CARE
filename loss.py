@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-import torch.nn as nn
 
 
 def cal_output(alpha, c):
@@ -85,36 +84,3 @@ def DS_Combin(alpha, classes):
         else:
             alpha_a = DS_Combin_two(alpha_a, alpha[v + 1])
     return alpha_a
-
-
-class BinaryFocalLoss(nn.Module):
-    def __init__(self, alpha=0.25, gamma=2):
-        super(BinaryFocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-
-    def forward(self, preds, labels):
-        eps = 1e-7
-        preds = preds.clamp(eps, 1.0 - eps)  # Clamp predictions to avoid log(0)
-        loss_y1 = -1 * self.alpha * torch.pow((1 - preds), self.gamma) * torch.log(preds) * labels
-        loss_y0 = -1 * (1 - self.alpha) * torch.pow(preds, self.gamma) * torch.log(1 - preds) * (1 - labels)
-        loss = loss_y0 + loss_y1
-        return torch.mean(loss)
-
-class MultiFocalLoss(nn.Module):
-    def __init__(self, alpha=0.25, gamma=2):
-        super(MultiFocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-
-    def forward(self, preds, labels):
-        if labels.dim() == 1:
-            labels = F.one_hot(labels, num_classes=preds.size(1)).float()
-        total_loss = 0
-        binary_focal_loss = BinaryFocalLoss(alpha=self.alpha, gamma=self.gamma)
-        logits = F.softmax(preds, dim=1)
-        nums = labels.shape[1]
-        for i in range(nums):
-            loss = binary_focal_loss(logits[:, i], labels[:, i])
-            total_loss += loss
-        return total_loss / nums
