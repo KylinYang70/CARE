@@ -1,4 +1,6 @@
-# FedUCLA: One-Shot Federated Learning with Uncertainty-Calibrated Logits Aggregation
+# CARE: A Calibration-Aware Cross-Institutional
+Collaboration Framework for Medical Image
+Classification
 
 
 
@@ -7,9 +9,9 @@
 ```
 ├── data/                 # Dataset processing scripts
 ├── model/                # ResNet models and base classifiers
-├── saved/                # Folder for saving client models
+├── saved/                # Folder for saving source models
 ├── loss.py               # Loss functions
-├── train_client.py       # Client-side training script
+├── train_client.py       # Target institution training script
 ├── fusion.py             # Fusion script
 ├── utils.py              # Utility functions
 └── README.md             # Documentation
@@ -65,20 +67,20 @@ data_path/
 
 ## 🚀 Training Individual Clients
 
-Each client trains its own model independently.
+Each source institution trains its own model independently.
 
-### **Train a Single Client**
+### **Train a Single Model**
 ```bash
 python train_client.py --dataset 'isic' --data_dir 'your/dataset/path' --client_idx 0 --epochs 100 --model 'resnet18' --loss 'entropy_loss'
 ```
 
 ---
 
-## 🔄 Federated Model Fusion
+## 🔄 Model Fusion
 
-Once all clients have trained their models, we aggregate them using the FedUCLA framework.
+Once all source models have trained their models, we aggregate them using the CARE framework.
 
-### **Run Model Fusion**
+### **Run Fusion.py**
 ```bash
 python fusion.py --dataset 'isic' --client_list 0 1 2 3 4
 ```
