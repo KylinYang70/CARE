@@ -1,7 +1,4 @@
-# CARE: A Calibration-Aware Cross-Institutional
-Collaboration Framework for Medical Image
-Classification
-
+# CARE: A Calibration-Aware Cross-Institutional Collaboration Framework for Medical Image Classification
 
 
 ## 📂 Repository Structure
@@ -11,7 +8,7 @@ Classification
 ├── model/                # ResNet models and base classifiers
 ├── saved/                # Folder for saving source models
 ├── loss.py               # Loss functions
-├── train_client.py       # Target institution training script
+├── train_client.py       # Source institution training script
 ├── fusion.py             # Fusion script
 ├── utils.py              # Utility functions
 └── README.md             # Documentation
